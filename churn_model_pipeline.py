@@ -1,5 +1,5 @@
 """
-Module for training and evaluating a customer churn prediction model with MLflow and Elasticsearch integration.
+Module for training and evaluating a customer churn prediction model with MLflow and Elasticsearch integration and email notifications.
 """
 
 import os
@@ -27,6 +27,8 @@ import time
 import psutil
 import docker
 from elasticsearch import Elasticsearch
+import smtplib
+from email.mime.text import MIMEText
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -148,6 +150,33 @@ def monitor_data_drift(X_train, X_test, es):
     mlflow.log_metric("data_drift", drift_score)
     log_to_elasticsearch(es, "mlflow-metrics", metrics)
     return drift_score
+
+# Email Notification Setup
+def send_email_notification(subject, body):
+    """Sends an email notification."""
+    sender_email = "khaledbenahmed43@gmail.com"  # Replace with your sender email
+    sender_password = "fmeb rrur sqil enet"  # Replace with your sender email password or app password
+    receiver_email = "Khaled.Benahmed@esprit.tn"  # Replace with your receiver email
+    smtp_server = "smtp.gmail.com"  # Replace with your SMTP server, e.g., 'smtp.gmail.com' for Gmail
+    smtp_port = 587  # Replace with your SMTP port, e.g., 587 for TLS
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Upgrade connection to secure TLS
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        print("📧 Email notification sent successfully!")
+    except Exception as e:
+        print(f"❌ Email notification failed: {e}")
+        print(e)
+    finally:
+        if server:
+            server.quit()
 
 
 def load_raw_data() -> pd.DataFrame:
@@ -296,6 +325,8 @@ def prepare_data() -> None:
     joblib.dump(list(X.columns), f"{data_path}/feature_names.joblib")
 
     print("✅ Data prepared and saved.")
+    send_email_notification(subject="Data Preparation Completed", body="Data preparation step finished successfully.")
+
 
 def perform_grid_search() -> None:
     """Perform grid search to find the best hyperparameters."""
@@ -373,6 +404,8 @@ def perform_grid_search() -> None:
         mlflow.log_artifact(importance_path)
 
         print("✅ Grid search completed and best model saved.")
+        send_email_notification(subject="Grid Search Completed", body=f"Grid search finished. Best parameters: {grid_search.best_params_}, Best F1 score: {grid_search.best_score_:.4f}")
+
 
     monitor_system_resources(es) # Monitor system resources after grid search
     monitor_docker_containers(es) # Monitor docker containers after grid search
@@ -423,6 +456,8 @@ def train_model() -> None:
         log_to_elasticsearch(es, "mlflow-metrics", {"action": "model_registered", "model_name": "churn_prediction_model"}) # Log model registration to ES
 
         print("✅ Model trained, saved locally, and registered with MLflow.")
+        send_email_notification(subject="Model Training Completed", body="Model training finished and model registered in MLflow.")
+
 
     monitor_system_resources(es) # Monitor system resources after training
     monitor_docker_containers(es) # Monitor docker containers after training
@@ -449,6 +484,7 @@ def retrain_model():
     # Save the trained model
     joblib.dump(model, f"{model_path}/model_retrained.joblib")
     print("✅ Model retrained and saved successfully!")
+    send_email_notification(subject="Model Retraining Completed", body="Model retraining finished successfully.")
     return model
 
 def evaluate_model() -> None:
@@ -523,6 +559,8 @@ def evaluate_model() -> None:
         mlflow.log_artifact(roc_path)
 
         print("📊 Evaluation artifacts saved and logged to MLflow.")
+        send_email_notification(subject="Model Evaluation Completed", body=f"Model evaluation finished. Metrics: {metrics}")
+
 
     monitor_system_resources(es) # Monitor system resources after evaluation
     monitor_docker_containers(es) # Monitor docker containers after evaluation
@@ -560,3 +598,4 @@ def predict() -> None:
 
         result = "Churn" if prediction[0] else "Not Churn"
         print(f"🔮 Prediction: {result} (Probability: {prediction_prob[0]:.2f})")
+        send_email_notification(subject="Prediction Completed", body=f"Prediction for sample data: {sample_data}. Result: {result} (Probability: {prediction_prob[0]:.2f})")
