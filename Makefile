@@ -2,7 +2,7 @@
 PYTHON=python
 SCRIPT=main.py
 PIPELINE_SCRIPT=churn_model_pipeline.py
-DOCKER_IMAGE_NAME=khaledbenahmed/mlops
+DOCKER_IMAGE_NAME=khaledbenahmed0/mlops
 DOCKER_TAG=latest
 DOCKERFILE=Dockerfile
 CONTAINER_NAME=mlops-container
@@ -59,7 +59,6 @@ setup-dirs:
 build-image:
 	@echo "🚀 Building Docker image..."
 	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) -f $(DOCKERFILE) .
-        
 run-container:
 	@echo "🎮 Running Docker container..."
 	docker run --name $(CONTAINER_NAME) -d $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
@@ -75,6 +74,8 @@ push-image:
 pull-image:
 	@echo "📥 Pulling Docker image from registry..."
 	docker pull $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
+deploy: build-image push-image
+	@echo "✅ Complete deployment on Docker Hub finished!"
 
 clean:
 	@echo "🧹 Cleaning up generated files..."

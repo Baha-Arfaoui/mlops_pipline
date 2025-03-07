@@ -50,24 +50,23 @@ param_grid = {
 model = None
 X = None
 sample_data = {
-    "Account length": 100,
+    "Account length": 25, # Shorter account length, higher churn risk
     "Area code": 408,
-    "Number vmail messages": 12,
-    "Total day minutes": 200,
-    "Total day calls": 50,
-    "Total eve minutes": 150,
-    "Total eve calls": 30,
-    "Total night minutes": 300,
-    "Total night calls": 20,
-    "Total intl minutes": 44,
-    "Total intl calls": 21,
-    "Customer service calls": 22,
-    "International plan_Yes": 1,
+    "Number vmail messages": 0, # No voicemail messages, consistent with 'No' plan
+    "Total day minutes": 280, # High day minutes usage
+    "Total day calls": 100,
+    "Total eve minutes": 250, # High evening minutes usage
+    "Total eve calls": 80,
+    "Total night minutes": 220,
+    "Total night calls": 70,
+    "Total intl minutes": 10,
+    "Total intl calls": 5,
+    "Customer service calls": 4, # Increased customer service calls - strong churn indicator
+    "International plan_Yes": 1, # Keeping International plan as 'Yes' for consistency, could be either way for churn
     "Region_Northeast": 0,
     "Region_South": 1,
     "Region_West": 0,
 }
-
 # MLflow setup
 mlflow.set_registry_uri("http://localhost:5000")
 experiment_name = "Churn_Prediction_Experiment"
@@ -152,15 +151,15 @@ def monitor_data_drift(X_train, X_test, es):
     return drift_score
 
 # Email Notification Setup
-def send_email_notification(subject, body):
-    """Sends an email notification."""
+def send_email_notification(subject, body, is_html=False):
+    """Sends an email notification with support for HTML formatting."""
     sender_email = "khaledbenahmed43@gmail.com"  # Replace with your sender email
     sender_password = "fmeb rrur sqil enet"  # Replace with your sender email password or app password
     receiver_email = "Khaled.Benahmed@esprit.tn"  # Replace with your receiver email
     smtp_server = "smtp.gmail.com"  # Replace with your SMTP server, e.g., 'smtp.gmail.com' for Gmail
     smtp_port = 587  # Replace with your SMTP port, e.g., 587 for TLS
 
-    msg = MIMEText(body)
+    msg = MIMEText(body, 'html' if is_html else 'plain') # Set subtype to 'html' if is_html is True
     msg['Subject'] = subject
     msg['From'] = sender_email
     msg['To'] = receiver_email
@@ -523,7 +522,10 @@ def evaluate_model() -> None:
         # Log metrics to MLflow
         for metric_name, metric_value in metrics.items():
             mlflow.log_metric(metric_name, metric_value)
-        log_to_elasticsearch(es, "mlflow-metrics", {"action": "evaluation_metrics", "metrics": metrics}) # Log metrics to ES
+        log_to_elasticsearch(es, "mlflow-metrics", {"action": "evaluation_metrics", "metrics_raw": metrics}) # Log metrics to ES in raw format as well for potential Kibana dashboarding
+
+        # Format metrics for styled email body
+        metrics_html = "".join([f"<tr><td><b>{metric_name}</b></td><td>{metric_value:.4f}</td></tr>" for metric_name, metric_value in metrics.items()])
 
 
         print("📊 Evaluation metrics:", metrics)
@@ -558,8 +560,34 @@ def evaluate_model() -> None:
         # Log ROC curve to MLflow
         mlflow.log_artifact(roc_path)
 
+        # Create HTML body for email
+        evaluation_email_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Model Evaluation Completed</title>
+        </head>
+        <body>
+            <h1>Model Evaluation Completed</h1>
+            <p>The churn prediction model evaluation has finished. Here are the key metrics:</p>
+            <table border="1">
+                <thead>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    {metrics_html}
+                </tbody>
+            </table>
+            <p>Evaluation artifacts (confusion matrix, ROC curve) have been saved and logged to MLflow.</p>
+        </body>
+        </html>
+        """
+
+
         print("📊 Evaluation artifacts saved and logged to MLflow.")
-        send_email_notification(subject="Model Evaluation Completed", body=f"Model evaluation finished. Metrics: {metrics}")
+        send_email_notification(
+            subject="Model Evaluation Completed", body=evaluation_email_body, is_html=True
+        )
 
 
     monitor_system_resources(es) # Monitor system resources after evaluation
@@ -597,5 +625,36 @@ def predict() -> None:
 
 
         result = "Churn" if prediction[0] else "Not Churn"
+
+        # Format sample data for HTML email
+        sample_data_html = "".join([f"<tr><td><b>{key}</b></td><td>{value}</td></tr>" for key, value in sample_data.items()])
+
+        # Create HTML body for prediction email
+        prediction_email_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Prediction Completed</title>
+        </head>
+        <body>
+            <h1>Prediction Completed</h1>
+            <p>Here is the churn prediction for the provided sample data:</p>
+            <table border="1">
+                <thead>
+                    <tr><th>Feature</th><th>Value</th></tr>
+                </thead>
+                <tbody>
+                    {sample_data_html}
+                </tbody>
+            </table>
+            <h2>Prediction Result: {result}</h2>
+            <p><b>Probability of Churn:</b> {prediction_prob[0]:.2f}</p>
+        </body>
+        </html>
+        """
+
+
         print(f"🔮 Prediction: {result} (Probability: {prediction_prob[0]:.2f})")
-        send_email_notification(subject="Prediction Completed", body=f"Prediction for sample data: {sample_data}. Result: {result} (Probability: {prediction_prob[0]:.2f})")
+        send_email_notification(
+            subject="Prediction Completed", body=prediction_email_body, is_html=True
+        )

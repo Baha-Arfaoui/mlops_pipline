@@ -104,9 +104,7 @@ def retrain_model():
     """
     try:
         # Prepare data and retrain model using the functions
-        cmp.prepare_data()
-        model = cmp.train_model()
-        
+        model = cmp.retrain_model()
         # No need to separately load model as retrain_model returns the model
         # Save the trained model
         joblib.dump(model, MODEL_PATH)
