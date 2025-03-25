@@ -153,9 +153,9 @@ def monitor_data_drift(X_train, X_test, es):
 # Email Notification Setup
 def send_email_notification(subject, body, is_html=False):
     """Sends an email notification with support for HTML formatting."""
-    sender_email = "khaledbenahmed43@gmail.com"  # Replace with your sender email
-    sender_password = "fmeb rrur sqil enet"  # Replace with your sender email password or app password
-    receiver_email = "Khaled.Benahmed@esprit.tn"  # Replace with your receiver email
+    sender_email = ""  # Replace with your sender email
+    sender_password = ""  # Replace with your sender email password or app password
+    receiver_email = ""  # Replace with your receiver email
     smtp_server = "smtp.gmail.com"  # Replace with your SMTP server, e.g., 'smtp.gmail.com' for Gmail
     smtp_port = 587  # Replace with your SMTP port, e.g., 587 for TLS
 
