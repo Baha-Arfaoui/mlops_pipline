@@ -55,15 +55,7 @@ The project is structured as follows:
 7. Enable monitoring:
    - Start Elasticsearch and Kibana
    - Configure MLflow tracking for model monitoring
-
-## Excellence Features
-To enhance the project, consider implementing:
-
-
+     
 ## Contributors
-- [Your Name]
-- [Other Contributors]
-
-## License
-This project is licensed under [Your Preferred License].
+- KHALED BEN AHMED
 
