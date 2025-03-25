@@ -6,11 +6,12 @@ This project focuses on implementing MLOps principles by automating and deployin
 ## Project Structure
 The project is structured as follows:
 1. **Modularization**: Refactoring an ML model from a Jupyter Notebook into reusable and independent modules.
-2. **Automation (CI/CD)**: Implementing automated workflows using a Makefile and tools such as Pylint, Flake8, MyPy, SonarQube, and Black to ensure code quality, security, and formatting.
+2. **Automation (CI/CD)**: Implementing automated workflows using a Makefile and tools such as Pylint, Flake8, MyPy, SonarQube, and Black to ensure code quality, security, and formatting Unit and functional tests.
 3. **MLflow Integration**: Tracking experiments, managing model versions, and ensuring reproducibility using MLflow.
 4. **Model Deployment**: Exposing the trained model as a REST API using FastAPI, with JSON-based documentation.
 5. **Containerization**: Using Docker to containerize the API, publishing the image to DockerHub, and deploying the application.
-6. **Monitoring**: Continuously tracking model performance using MLflow, Elasticsearch, and visualizing metrics with Kibana.
+6. **Monitoring**: Continuously tracking model performance using MLflow, Elasticsearch, and visualizing metrics with Kibana ,System monitoring (CPU, RAM, disk space, etc.).
+
 
 ## Setup Instructions
 ### Prerequisites
@@ -57,11 +58,7 @@ The project is structured as follows:
 
 ## Excellence Features
 To enhance the project, consider implementing:
-- **CI/CD with Jenkins or GitHub Actions**
-- **Unit and functional tests**
-- **WebSocket-based deployment**
-- **Multi-container architecture with Docker Compose**
-- **System monitoring (CPU, RAM, disk space, etc.)**
+
 
 ## Contributors
 - [Your Name]
