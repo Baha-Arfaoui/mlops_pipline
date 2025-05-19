@@ -1277,3 +1277,101 @@ class LangGraphDetailedTracer(BaseCallbackHandler):
                 f.write(html_template)
             
         return html_template
+
+
+import os
+import time
+import json
+from langchain.schema import BaseMessage
+from langchain.callbacks.base import BaseCallbackHandler
+
+class TracingCallbackHandler(BaseCallbackHandler):
+    def __init__(self, trace_id, user_id, conversation_id, request_id, log_dir="logs"):
+        self.trace_id = trace_id
+        self.user_id = user_id
+        self.conversation_id = conversation_id
+        self.request_id = request_id
+        self.log_dir = log_dir
+        os.makedirs(log_dir, exist_ok=True)
+        
+        self.json_data = {
+            "trace_id": trace_id,
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "questions": []
+        }
+        
+        self.current_prompt = None
+        self.start_time = None
+        self.current_tool = None
+        self.tool_start_time = None
+
+    def _extract_content(self, item):
+        if isinstance(item, BaseMessage):
+            return item.content
+        elif isinstance(item, dict):
+            return item.get("content")
+        elif isinstance(item, str):
+            return item
+        else:
+            return str(item)
+
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        self.start_time = time.time()
+        self.current_prompt = [self._extract_content(p) for p in prompts]
+
+    def on_llm_end(self, response, **kwargs):
+        duration = time.time() - self.start_time
+        generations = getattr(response, "generations", [])
+        outputs = [self._extract_content(g[0]) for g in generations if g]
+
+        self.json_data["questions"].append({
+            "request_id": self.request_id,
+            "type": "llm",
+            "question": self.current_prompt[0] if self.current_prompt else None,
+            "response": outputs[0] if outputs else None,
+            "duration": duration
+        })
+
+    def on_tool_start(self, serialized, input_str, **kwargs):
+        self.tool_start_time = time.time()
+        self.current_tool = {
+            "request_id": self.request_id,
+            "type": "tool",
+            "tool_name": serialized.get("name"),
+            "input": input_str,
+            "output": None,
+            "duration": None
+        }
+
+    def on_tool_end(self, output, **kwargs):
+        duration = time.time() - self.tool_start_time
+        if self.current_tool:
+            self.current_tool["output"] = str(output)
+            self.current_tool["duration"] = duration
+            self.json_data["questions"].append(self.current_tool)
+            self.current_tool = None
+
+    def on_tool_error(self, error, **kwargs):
+        if self.current_tool:
+            self.current_tool["error"] = str(error)
+            self.json_data["questions"].append(self.current_tool)
+            self.current_tool = None
+
+    def on_llm_error(self, error, **kwargs):
+        self.json_data["questions"].append({
+            "request_id": self.request_id,
+            "type": "llm",
+            "question": self.current_prompt[0] if self.current_prompt else None,
+            "error": str(error)
+        })
+
+    def save_to_json(self):
+        path = os.path.join(self.log_dir, f"{self.conversation_id}.json")
+        with open(path, "w") as f:
+            json.dump(self.json_data, f, indent=2, ensure_ascii=False)
+
+
+
+
+
