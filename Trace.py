@@ -1374,4 +1374,101 @@ class TracingCallbackHandler(BaseCallbackHandler):
 
 
 
+import os
+import json
+import time
+from typing import Any, Dict, List, Optional
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.schema import LLMResult, AgentAction, AgentFinish
+
+class TracingCallbackHandler(BaseCallbackHandler):
+    def __init__(
+        self,
+        trace_id: str,
+        user_id: Optional[str] = None,
+        conversation_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        output_dir: str = "logs"
+    ):
+        self.trace_id = trace_id
+        self.user_id = user_id
+        self.conversation_id = conversation_id or trace_id
+        self.request_id = request_id
+        self.output_dir = output_dir
+
+        self.interactions: List[Dict[str, Any]] = []
+        self.start_times: Dict[str, float] = {}
+
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def _start_timer(self, key: str):
+        self.start_times[key] = time.time()
+
+    def _end_timer(self, key: str) -> float:
+        return round(time.time() - self.start_times.get(key, time.time()), 2)
+
+    # ==== LLM Events ====
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs):
+        self._start_timer("llm")
+        self.interactions.append({
+            "type": "llm_start",
+            "prompts": prompts,
+            "request_id": self.request_id,
+            "timestamp": time.time(),
+        })
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any):
+        duration = self._end_timer("llm")
+        generations = [gen.text for gen in response.generations[0]]
+        self.interactions.append({
+            "type": "llm_end",
+            "responses": generations,
+            "duration": duration,
+            "request_id": self.request_id
+        })
+
+    # ==== Tool Events ====
+    def on_tool_start(self, tool: str, input_str: str, **kwargs: Any):
+        self._start_timer("tool")
+        self.interactions.append({
+            "type": "tool_start",
+            "tool_name": tool,
+            "input": input_str,
+            "request_id": self.request_id,
+            "timestamp": time.time()
+        })
+
+    def on_tool_end(self, output: str, **kwargs: Any):
+        duration = self._end_timer("tool")
+        self.interactions.append({
+            "type": "tool_end",
+            "output": output,
+            "duration": duration,
+            "request_id": self.request_id
+        })
+
+    # ==== Agent Finish ====
+    def on_agent_finish(self, finish: AgentFinish, **kwargs: Any):
+        self.interactions.append({
+            "type": "agent_finish",
+            "return_values": finish.return_values,
+            "log": finish.log,
+            "request_id": self.request_id
+        })
+
+    # ==== Save to JSON ====
+    def save_to_json(self):
+        trace = {
+            "trace_id": self.trace_id,
+            "user_id": self.user_id,
+            "conversation_id": self.conversation_id,
+            "request_id": self.request_id,
+            "interactions": self.interactions
+        }
+
+        file_path = os.path.join(self.output_dir, f"{self.conversation_id}.json")
+        with open(file_path, "w") as f:
+            json.dump(trace, f, indent=2)
+        print(f"Trace saved to {file_path}")
+
 
