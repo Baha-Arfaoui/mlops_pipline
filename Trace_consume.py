@@ -255,3 +255,127 @@ if __name__ == "__main__":
         print(result["agent_outcome"]["output"])
     else:
         print("Agent did not provide a final answer.")
+
+
+import streamlit as st
+from sqlalchemy import create_engine, text
+import pandas as pd
+import plotly.express as px
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# DB setup
+DB_URL = os.getenv("DATABASE_URL")  # Set this in your .env
+engine = create_engine(DB_URL)
+
+# Title and menu
+st.set_page_config(page_title="AI Agent Tracing Dashboard", layout="wide")
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Dashboard", "Data"])
+
+# Auth (basic Streamlit login check, replace with your method if needed)
+PASSWORD = os.getenv("APP_PASSWORD")
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    with st.sidebar.form("Login"):
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Login")
+
+        if submit and password == PASSWORD:
+            st.session_state["authenticated"] = True
+        elif submit:
+            st.error("Invalid credentials")
+    st.stop()
+
+# Utility function
+@st.cache_data(ttl=300)
+def load_data():
+    query = text("SELECT * FROM agent_logs ORDER BY start_time DESC LIMIT 10000")
+    with engine.connect() as conn:
+        df = pd.read_sql(query, conn)
+    df["start_time"] = pd.to_datetime(df["start_time"])
+    df["end_time"] = pd.to_datetime(df["end_time"])
+    df["duration"] = (df["end_time"] - df["start_time"]).dt.total_seconds()
+    return df
+
+
+# Page: Dashboard
+if page == "Dashboard":
+    st.title("📊 AI Agent Dashboard")
+
+    df = load_data()
+
+    # Filters
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_user = st.selectbox("Filter by User", ["All"] + sorted(df["user_id"].unique().tolist()))
+    with col2:
+        selected_convo = st.selectbox("Filter by Conversation", ["All"] + sorted(df["conversation_id"].unique().tolist()))
+
+    filtered_df = df.copy()
+    if selected_user != "All":
+        filtered_df = filtered_df[filtered_df["user_id"] == selected_user]
+    if selected_convo != "All":
+        filtered_df = filtered_df[filtered_df["conversation_id"] == selected_convo]
+
+    # Metrics
+    st.subheader("⚙️ Key Metrics")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Traces", len(filtered_df))
+    col2.metric("Avg Latency (s)", round(filtered_df["duration"].mean(), 2))
+    col3.metric("Avg Tokens", filtered_df["llm_response"].apply(lambda x: x.get("token_usage", {}).get("total_tokens", 0) if isinstance(x, dict) else 0).mean())
+
+    # Charts
+    st.subheader("📈 Activity Over Time")
+    if not filtered_df.empty:
+        time_data = (
+            filtered_df
+            .groupby(filtered_df["start_time"].dt.date)
+            .agg({
+                "question_id": "count",
+                "duration": "mean"
+            })
+            .rename(columns={"question_id": "trace_count"})
+            .reset_index()
+        )
+
+        fig = px.bar(time_data, x="start_time", y="trace_count", title="Traces per Day")
+        st.plotly_chart(fig, use_container_width=True)
+
+        fig2 = px.line(time_data, x="start_time", y="duration", title="Avg Latency per Day (s)")
+        st.plotly_chart(fig2, use_container_width=True)
+    else:
+        st.warning("No data available for selected filters.")
+
+# Page: Data
+elif page == "Data":
+    st.title("📄 Raw Logs Table")
+
+    df = load_data()
+
+    # Filters
+    st.sidebar.subheader("Filters")
+    user_filter = st.sidebar.multiselect("User", df["user_id"].unique())
+    convo_filter = st.sidebar.multiselect("Conversation ID", df["conversation_id"].unique())
+
+    if user_filter:
+        df = df[df["user_id"].isin(user_filter)]
+    if convo_filter:
+        df = df[df["conversation_id"].isin(convo_filter)]
+
+    st.dataframe(df, use_container_width=True)
+
+    st.download_button(
+        label="📥 Download CSV",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name="agent_logs.csv",
+        mime="text/csv"
+    )
+
+
