@@ -379,3 +379,46 @@ elif page == "Data":
     )
 
 
+
+import pandas as pd
+import plotly.express as px
+
+def build_timeline_dataframe(trace_data):
+    rows = []
+    for q in trace_data["questions"]:
+        base_time = q["start_time"]
+
+        # LLM calls
+        for llm in q["llm_calls"]:
+            rows.append({
+                "question_id": q["question_id"],
+                "component": "LLM",
+                "label": llm.get("llm_type", "LLM"),
+                "start": pd.to_datetime(llm["start_time"], unit="s"),
+                "end": pd.to_datetime(llm["end_time"], unit="s"),
+            })
+
+        # Tool calls
+        for tool in q["tool_calls"]:
+            rows.append({
+                "question_id": q["question_id"],
+                "component": "Tool",
+                "label": tool.get("tool_name", "Tool"),
+                "start": pd.to_datetime(tool["start_time"], unit="s"),
+                "end": pd.to_datetime(tool["end_time"], unit="s"),
+            })
+
+        # Agent actions
+        for action in q["agent_actions"]:
+            if "finish_time" in action:
+                rows.append({
+                    "question_id": q["question_id"],
+                    "component": "Agent",
+                    "label": str(action["action"]),
+                    "start": pd.to_datetime(action["timestamp"], unit="s"),
+                    "end": pd.to_datetime(action["finish_time"], unit="s"),
+                })
+
+    return pd.DataFrame(rows)
+
+
