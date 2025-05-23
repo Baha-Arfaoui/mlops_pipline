@@ -165,3 +165,101 @@ button {
 }
 
 
+/* src/App.css */
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  background-color: #f4f6f8;
+  font-family: 'Segoe UI', sans-serif;
+  color: #1a1a1a;
+}
+
+.sidebar {
+  width: 280px;
+  background-color: white;
+  border-right: 1px solid #d1d1d1;
+  padding: 30px 20px;
+}
+
+.sidebar h1 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.sidebar p {
+  font-size: 14px;
+  margin-bottom: 40px;
+  color: #333;
+}
+
+.sidebar .demo-buttons button {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px;
+  font-size: 14px;
+  background-color: #00754a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidebar .demo-buttons button:hover {
+  background-color: #005f3a;
+}
+
+.main {
+  flex: 1;
+  padding: 40px 60px;
+}
+
+h2 {
+  font-size: 22px;
+  margin-bottom: 24px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+input,
+textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+button[type="submit"] {
+  align-self: flex-start;
+  padding: 10px 16px;
+  background-color: #00754a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button[type="submit"]:hover {
+  background-color: #005f3a;
+}
+
+.response-box {
+  margin-top: 20px;
+  padding: 12px;
+  background-color: #eef6f0;
+  border-left: 4px solid #00754a;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
